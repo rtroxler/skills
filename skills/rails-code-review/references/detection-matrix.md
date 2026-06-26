@@ -9,6 +9,11 @@ LOW with a note) when the card's caveats fit the code.
 
 Grep commands assume you're at the repo root. They surface *candidates*, not verdicts.
 
+> **Human one-pager counterpart:** `rails-37signals-style/checklists/pre-merge-review.md` is
+> this same smell→pattern mapping as a manual tick-through checklist for PR review. This matrix
+> is the agent-facing engine (severities + greps + the deployment dimension). Keep the two in
+> sync when you edit either.
+
 ---
 
 ## A — Models & domain → cite `01-models.md`

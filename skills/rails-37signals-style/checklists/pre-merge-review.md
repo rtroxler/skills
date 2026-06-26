@@ -4,6 +4,11 @@ Review the diff against these questions. Each maps to a pattern card (dimension 
 parentheses) — cite the card when flagging, and honor its "when to break the rule."
 Calibrate: flag what's *in the diff*; don't demand the whole codebase be converted.
 
+> **This is the human tick-through version.** For an automated pass over a diff, run
+> `/rails-code-review` — its `references/detection-matrix.md` is the same smell→pattern
+> mapping as an agent-facing engine (severities, grep heuristics, a deployment section, and
+> a two-layer report). Same source patterns, two front ends; if you change one, change the other.
+
 ## Architecture smells (01, 02)
 
 - [ ] New `*Service`/`*Interactor`/`def self.call`? → model method, association extension,
