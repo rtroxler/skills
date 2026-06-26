@@ -383,7 +383,7 @@ Invoked by a 3-line job (`app/jobs/room/push_message_job.rb`). One public method
 
 **Counter-example:** `app/services/push_notification_service.rb` with `self.call(room_id, message_id)` — verb-as-class, top-level namespace pollution, and an implicit second framework (`Result` objects, `call` conventions) bolted onto Rails.
 
-**When to break the rule:** None, really — this is the load-bearing alternative to service objects. The discipline is the *naming*: if you can't name it as a noun, the behavior probably belongs on a model that already exists.
+**When to break the rule:** 37signals' own `STYLE.md` (§ Controller and model interactions) softens the absolutism worth quoting: *"When justified, it is fine to use services or form objects, but don't treat those as special artifacts"* — their example is `Signup.new(email_address:).create_identity`, a plain `ActiveModel::Model` form object that validates untrusted signup input. So the rule isn't "never a service"; it's **no `app/services/` ceremony, no `Result`/`call` framework** — a plainly-named object that earns its keep is fine. The discipline stays in the *naming*: if you can't name it as a noun (or a clear verb on a noun), the behavior probably belongs on a model that already exists.
 
 **Detection heuristic:** `app/services|app/interactors|app/operations` directories; classes named `Verb+Noun+Service`; `def self.call`. Rewrite as model method, association extension, or namespaced noun-PORO.
 

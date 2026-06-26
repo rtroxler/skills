@@ -21,11 +21,20 @@ choices were later absorbed into Rails (auth generator, Solid Queue/Cache/Cable,
 SQLite production tuning, Kamal), the reference files say so explicitly. Never recommend
 the 2024 workaround when the 2026 framework default does the same thing.
 
+**Second source — fizzy's `STYLE.md`.** 37signals' newer public app, **fizzy** (`basecamp/fizzy`),
+ships an explicit `STYLE.md` that states many of these conventions in their own words. A few
+cards now cite it as `fizzy STYLE.md`. Where a stated rule there *refines or corrects* what was
+reverse-engineered from Campfire, **STYLE.md wins** — the conventions card (`09`) reflects that
+(e.g. the bang-method rule, and "expanded conditionals over guard clauses"). Only version-agnostic
+*style/convention* rules were imported; fizzy's Rails-8-specific and multi-tenant-SaaS machinery
+was deliberately left out of scope.
+
 ## The philosophy in ten lines
 
-1. **The framework is the architecture.** No service objects, no form objects, no query
-   objects, no policy objects, no decorators. Models, controllers, helpers, jobs, views —
-   used at full power.
+1. **The framework is the architecture.** No *ceremonial* service / form / query / policy /
+   decorator layer — `app/services/` is a smell, not a structure. A plainly-named object
+   (`Signup#create_identity`) is fine *when justified*; it just isn't treated as a special
+   artifact. Models, controllers, helpers, jobs, views — used at full power.
 2. **Fat models, organized by concerns** — namespaced per-model, extracted for
    *readability*, not reuse.
 3. **Controllers only ever do CRUD.** Anything that isn't CRUD becomes a new resource,

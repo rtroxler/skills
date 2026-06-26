@@ -7,7 +7,7 @@
 
 ## Pattern: Jobs are three-line async transports; the domain owns the logic
 
-**One-line rule:** A job's `perform` is a single delegation to a domain method or PORO; the model exposes synchronous (`deliver_webhook`) and asynchronous (`deliver_webhook_later`) pairs, with the `_later` suffix mirroring ActiveJob's own vocabulary — and the default is *synchronous*: enqueue only for slow, fan-out, or failure-isolated external I/O.
+**One-line rule:** A job's `perform` is a single delegation to a domain method or PORO; the model exposes a synchronous method and its `_later` enqueuing twin (`deliver_webhook`/`deliver_webhook_later`), the `_later` suffix mirroring ActiveJob's own vocabulary — and when the sync and async halves live on the *same* object and would otherwise collide, 37signals' `STYLE.md` names the sync half `_now` (`relay_now`/`relay_later`). The default is *synchronous*: enqueue only for slow, fan-out, or failure-isolated external I/O.
 
 **Why 37signals does it:** Campfire ships an entire chat product with **two** job classes. The logic in a job class is untestable without the queue, invisible to the domain, and unusable synchronously. Keeping jobs as transports means: the console can run `bot.deliver_webhook(message)` directly; tests assert behavior on the model; retry/queue concerns stay in one layer. And most work simply never becomes a job — only webhooks (slow third-party HTTP) and push notifications (fan-out to thousands of subscriptions) cross the async line.
 
@@ -18,6 +18,7 @@
 - `app/models/room.rb:72-74` — `push_later(message)` private method wraps the enqueue; called from the domain reaction `Room#receive`
 - `app/jobs/application_job.rb` — untouched generator defaults (no retry framework accreted)
 - jobs namespaced under their domain owner: `Bot::`, `Room::` — not a flat `app/jobs` of verbs
+- the `_later`/`_now` convention: `fizzy STYLE.md §8 (Run async operations in jobs)`. Honest caveat: `_now` is the *documented* rule, but their actual code still uses a bare sync verb (`deliver` + `deliver_later`) far more than `_now` — reserve `_now` for the genuine same-object collision; a bare verb is fine otherwise.
 
 **Complete example** (the full async stack for webhooks — all of it):
 

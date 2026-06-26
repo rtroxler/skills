@@ -38,7 +38,7 @@ Delete the comment and the next engineer "fixes" this method. That's the test fo
 
 ## Pattern: One visual rhythm — public story first, indented private basement, whitespace as grouping
 
-**One-line rule:** Order every class as: includes → associations/macros → callbacks → scopes → class methods (`class << self` when several) → public instance methods → a single indented `private` section; format with rubocop-rails-omakase and use blank lines (single within, double between groups) as the only other organizer.
+**One-line rule:** Lead with declarations (includes → associations/macros → callbacks → scopes), then **class methods → public instance methods (`initialize` first) → a single indented `private` section**; within a section, order methods **top-down by invocation** — a method sits above the helpers it calls, recursively, so the file reads in execution order. Don't put a blank line under `private`; indent its body one level. Format with rubocop-rails-omakase; use blank lines (single within, double between groups) as the only other organizer.
 
 **Why 37signals does it:** Every file reads the same way: the top third is declarative (what this thing *is*), the middle is its public API, the basement is mechanism. The omakase RuboCop config is two lines — style debates are outsourced to the framework authors' defaults, including the signature indented-`private` and `%i[ ... ]`/`[ 1, 2 ]` inner-space style. Double blank lines inside long modules mark sub-chapters without resorting to comment banners.
 
@@ -50,6 +50,7 @@ Delete the comment and the next engineer "fixes" this method. That's the test fo
 - multiline-call continuation with `\`: `app/models/user/bot.rb:23-24` (`http.request \`-style), `app/helpers/rooms_helper.rb:9-14` (`link_to \`), `app/models/room/message_pusher.rb` (`Push::Subscription` chain)
 - argument spacing throughout: `%i[ show update ]` (`config/routes.rb:8`), `[ name, bio ].compact_blank` (`app/models/user.rb:32`)
 - parens dropped on DSL-ish/final calls: `update! active: false, ...` (`user.rb:44`), `redirect_to room_url(room)` everywhere
+- 37signals' stated rules: `fizzy STYLE.md §2 (Methods ordering)` — class methods → public-with-`initialize`-first → private; `§3 (Invocation order)` — vertical, caller-above-callee; `§5 (Visibility modifiers)` — no blank line under `private`, indent its body
 
 **Complete example** (the shape, as `app/models/session.rb` exhibits it whole):
 
@@ -77,6 +78,17 @@ end
 
 Constant first (the file's one tunable), macros, callback, class method, instance method. Nothing to scroll past, nothing out of order.
 
+**Two refinements 37signals spell out in `STYLE.md`:** (1) *Invocation order* — list methods in call order, so a caller appears above the methods it calls (recursively); the file reads top-to-bottom like the code runs. (2) *Module-only-private exception* — the indented-basement rule is for classes and mixed modules; when a module is **entirely** private methods, mark `private` at the top, leave one blank line, and do **not** indent:
+
+```ruby
+module Pricing
+  private
+
+  def subtotal = line_items.sum(&:total)
+  def tax      = subtotal * rate
+end
+```
+
 **Counter-example:** Private methods interleaved with public; `private :method_name` scattered inline; a 40-rule `.rubocop.yml` re-litigating string literals; section comment banners (`# == Associations ==`) doing what position should.
 
 **When to break the rule:** Inherited codebases with a different established rhythm — consistency beats this convention. The omakase config is itself designed to be *layered onto*, not fought; add project rules below the inherit line if you must.
@@ -85,9 +97,50 @@ Constant first (the file's one tunable), macros, callback, class method, instanc
 
 ---
 
+## Pattern: Conditional returns — expanded conditionals over guard clauses
+
+**One-line rule:** Express either/or logic as a full `if … else … end` (assignment-in-conditional welcome: `if record = find_by(...)`) rather than a guard-clause early return; reserve guards for a genuine top-of-method precondition, or when the main body is long enough that an early bail reads clearer. Phrase conditionals positively — no negated `if`/`unless`.
+
+**Why 37signals does it:** This is the one place fizzy's `STYLE.md` openly *reverses* a habit Campfire leaned on (Campfire guards with `head :forbidden unless …` throughout). Their reasoning: guard clauses get hard to read once they stack or nest, and an `if/else` makes both branches — and the single return value — obvious at a glance. Negated conditionals (`if !x`, `unless !x`) read backwards, so they're disallowed outright and enforced by RuboCop, not left to taste. This corrects the earlier Campfire-era guidance in this skill, which treated guard clauses as the default.
+
+**Citations:**
+- `fizzy STYLE.md §1 (Conditional returns)` — the canonical Bad (`return [] unless ids`) vs Good (`if ids = …; …; else; []; end`) pair, plus the two sanctioned guard exceptions: a return at the very top, or a non-trivial multi-line body
+- `fizzy .rubocop.yml` — enables `Style/NegatedIf` + `Style/NegatedUnless` *on top of* omakase ("phrase the positive") — a rare, deliberate house override
+
+**Complete example** (their Good form — assignment folded into the conditional, both branches visible):
+
+```ruby
+def todos_for_new_group
+  if ids = params.require(:todolist)[:todo_ids]
+    @bucket.recordings.todos.find(ids.split(","))
+  else
+    []
+  end
+end
+```
+
+The sanctioned guard — a precondition on the first line, before any real work:
+
+```ruby
+def publish
+  return if published?
+
+  update!(published_at: Time.current)
+  notify_subscribers
+end
+```
+
+**Counter-example:** `return [] unless ids` *mid-method* with more logic below it — two exit points and a reader holding a negation in their head; double negatives like `do_unless_not_ready`; `unless !active?` where `if active?` says it plainly.
+
+**When to break the rule:** A precondition guard at the very first line (above) is explicitly fine — often clearer than wrapping the whole method in an `if`. The rule targets guards buried *after* logic has started, and stacked/negated ones. In code with a settled guard-clause style, match the house rather than crusade.
+
+**Detection heuristic:** `return … unless`/`return … if` appearing after the first statement of a method; `if !`/`unless !`; deeply nested guards; a `.rubocop.yml` that hasn't enabled `Style/NegatedIf`/`Style/NegatedUnless`.
+
+---
+
 ## Pattern: Names do the documenting — a consistent verb/noun system
 
-**One-line rule:** Predicates end in `?` and read as questions (`open?`, `connected?`, `deactivated?`); bang methods mean "raises or mutates importantly" (`create_for` returns, `revise` wraps a transaction, `update_bot!` raises); finders are `find_by_*`/`find_or_create_for`; scopes are adjectives or participles (`ordered`, `active`, `unread`, `with_creator`, `without_bots`); async pairs add `_later`; "fresh/original/reachable" style adjectives name derived concepts.
+**One-line rule:** Predicates end in `?` and read as questions (`open?`, `connected?`, `deactivated?`); bang methods exist **only to mark the dangerous twin of a non-bang method** (`save`/`save!`) — never to flag "destructive" or "important" on their own (most destructive Ruby/Rails methods carry no `!`); finders are `find_by_*`/`find_or_create_for`; scopes are adjectives or participles (`ordered`, `active`, `unread`, `with_creator`, `without_bots`); async pairs add `_later`; "fresh/original/reachable" style adjectives name derived concepts.
 
 **Why 37signals does it:** With comments banned for the derivable, names carry the spec. The system is consistent enough to guess an API you've never read: what's the scope for non-bot users? `without_bots`. How do you enqueue webhook delivery? `deliver_webhook_later`. What's a message the user is allowed to see? `reachable_messages`. Negative predicates get positive names (`deactivated?` wraps `!active?`) so call sites never double-negate.
 
@@ -98,6 +151,7 @@ Constant first (the file's one tunable), macros, callback, class method, instanc
 - derived-concept nouns: `app/models/user.rb:7` (`reachable_messages`), `config/routes.rb:28,57` (`fresh_account_logo`, `fresh_user_avatar`), `app/models/room.rb:41-43` (`Room.original`)
 - enum readability: `app/models/membership.rb:9` — `enum involvement: %w[ invisible nothing mentions everything ].index_by(&:itself), _prefix: :involved_in` → `involved_in_mentions?` (string-valued enums via `index_by(&:itself)`: DB stays readable, predicates stay fluent)
 - intention-revealing locals: `app/controllers/rooms/closeds_controller.rb:41-47` (`grantees`, `revokees`)
+- the bang rule: `fizzy STYLE.md §4 (To bang or not to bang)` — `!` only when a non-bang counterpart exists; exemplar `Account::Seeder#seed` + `#seed!` (the bang is the destructive one, marked *because the pair exists*, not because it's destructive). **Corrects the older "bang = raises/important" claim in earlier versions of this card.**
 
 **Complete example** (`app/models/membership.rb:9-23` — the naming system in one screen):
 
@@ -125,7 +179,7 @@ end
 
 **When to break the rule:** Domain terms beat system regularity — `grant_to`/`revoke_from` aren't on any naming chart; they're the words the domain uses, which always wins.
 
-**Detection heuristic:** `get_`/`is_`/`handle_`/`process_` prefixes; boolean methods without `?`; scopes that read as SQL not English; sync/async pairs with unrelated names.
+**Detection heuristic:** `get_`/`is_`/`handle_`/`process_` prefixes; boolean methods without `?`; scopes that read as SQL not English; sync/async pairs with unrelated names; `!` methods with no non-bang sibling (or `!` used merely to signal "destructive").
 
 ---
 

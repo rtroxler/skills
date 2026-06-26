@@ -4,7 +4,7 @@
 
 **One-line rule:** When a "verb" doesn't fit CRUD, invent a resource whose CRUD *is* that verb — `resource :involvement, only: %i[ show update ]` — instead of adding a custom route/action.
 
-**Why 37signals does it:** Campfire has 27 controllers over 10 tables and a routes file with **zero** `member`/`collection` custom actions (one `delete :clear, on: :collection` is the lone exception). "Refresh a room" is `Rooms::RefreshesController#show`. "Reset a bot key" is `Accounts::Bots::KeysController#update`. Every controller stays 7-action-max, every URL is guessable, and the noun-ing forces domain thinking: notification settings became a thing called *involvement*.
+**Why 37signals does it:** Campfire has 27 controllers over 10 tables and a routes file with **zero** `member`/`collection` custom actions (one `delete :clear, on: :collection` is the lone exception). "Refresh a room" is `Rooms::RefreshesController#show`. "Reset a bot key" is `Accounts::Bots::KeysController#update`. Every controller stays 7-action-max, every URL is guessable, and the noun-ing forces domain thinking: notification settings became a thing called *involvement*. 37signals now states this rule outright — fizzy's `STYLE.md` (§ CRUD controllers) gives the same `post :close` → `resource :closure` rewrite as its one canonical example, and that app carries exactly **one** custom (non-resource) route action across its entire route table.
 
 **Citations:**
 - `config/routes.rb:61-73` — rooms nest `resource :refresh, :settings, :involvement` under `scope module: "rooms"`
